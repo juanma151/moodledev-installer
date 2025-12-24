@@ -3,6 +3,16 @@ It only works if using it as nix shell
 
 *(at the moment)*
 
+## Table of Contents
+
+- [It only works if using it as nix shell](#it-only-works-if-using-it-as-nix-shell)
+  - [CREATES A MOODLE INSTANCE](#creates-a-moodle-instance)
+  - [OPEN AN EXISTENT MOODLE INSTANCE](#open-an-existent-moodle-instance)
+  - [CHANGING THE DEFAULT OPTIONS](#changing-the-default-options)
+    - [List of options](#list-of-options)
+    - [Example](#example)
+    - [Base Dir as positional argument](#base-dir-as-positional-argument)
+
 ## CREATES A MOODLE INSTANCE
 ```
 $ nix develop --impure github:juanma151/moodledev-installer
@@ -91,3 +101,4 @@ $ nix develop --impure github:juanma151/moodledev-installer
   --site-port 8090 \
   my_folder
 ```
+
