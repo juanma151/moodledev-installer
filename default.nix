@@ -8,39 +8,40 @@
   sedPkg ? pkgs.gnused,
   ...
 }: let
-  moodlePhpEnv = phpPkg.withExtensions ({
-    all,
-    enabled,
-  }:
-    with all; [
-      ctype
-      curl
-      dom
-      exif
-      fileinfo
-      filter
-      gd
-      iconv
-      intl
-      mbstring
-      mysqli
-      mysqlnd
-      opcache
-      openssl
-      pdo_mysql
-      simplexml
-      soap
-      sodium
-      tokenizer
-      xmlreader
-      zip
-      zlib
-    ]
+  moodlePhpEnv = phpPkg.withExtensions (
+    {
+      all,
+      enabled,
+    }:
+      with all; [
+        ctype
+        curl
+        dom
+        exif
+        fileinfo
+        filter
+        gd
+        iconv
+        intl
+        mbstring
+        mysqli
+        mysqlnd
+        opcache
+        openssl
+        pdo_mysql
+        simplexml
+        soap
+        sodium
+        tokenizer
+        xmlreader
+        zip
+        zlib
+      ]
   );
 
   moodleDevInstaller = pkgs.stdenv.mkDerivation {
     pname = "moodledev-installer";
-    version = "3.3.0";
+    version = "1.2.0";
     src = ./src;
 
     dontBuild = true;
@@ -104,7 +105,7 @@
 
   moodleDevInstallerShell = pkgs.mkShell {
     name = "moodledev-installer-shell";
-    version = "3.3.0";
+    version = "1.2.0";
     packages = [moodleDevInstaller];
   };
 in {

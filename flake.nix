@@ -26,24 +26,23 @@
           inherit phpPkg apachePkg mariadbPkg moodlePkg zshPkg sedPkg;
         };
       in {
-
-        packages = {
-          moodleDevInstaller = top.moodleDevInstaller;
-          default = top.moodleDevInstaller;
-        };
+        ## packages = {
+        ##   moodleDevInstaller = top.moodleDevInstaller;
+        ##   default = top.moodleDevInstaller;
+        ## };
 
         devShells = {
           moodleDevInstaller = top.moodleDevInstallerShell;
           default = top.moodleDevInstallerShell;
         };
 
-        apps = rec {
-          moodleDevInstall = {
-            type="app";
-            program="${top.moodleDevInstaller}/bin/moodle-install";
-          };
-          default = moodleDevInstall;
-        };
+        ## apps = rec {
+        ##   moodleDevInstall = {
+        ##     type="app";
+        ##     program="${top.moodleDevInstaller}/bin/moodle-install";
+        ##   };
+        ##   default = moodleDevInstall;
+        ## };
       };
     };
 }
