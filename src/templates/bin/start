@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+emulate zsh -o err_exit -o unset -o pipe_fail
+
+bdir=${(%):-'%x'}
+bdir=${bdir:A}
+bdir=${bdir:h}
+
+${bdir}/moodle-db-start &&
+	${bdir}/moodle-php-start &&
+	${bdir}/moodle-apache-start
+

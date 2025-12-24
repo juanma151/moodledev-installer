@@ -1,0 +1,45 @@
+#! /usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+VAR_DIR=@BASE-DIR@
+PID_FILE=${VAR_DIR}/run/mysql.pid
+SOCKET=${VAR_DIR}/run/mysql.sock
+
+if [[ ! -f "${PID_FILE}" ]]; then
+	print - "** MariaDB Server is not running"
+	exit 0
+fi
+
+
+PID=$(<"${PID_FILE}")
+
+if ! kill -0 "${PID}" 2>/dev/null; then
+	print "**  Proceso ${PID} no existe. Limpiando pid file."
+	rm -f "${PID_FILE}"
+	rm -f "${SOCKET}"
+	exit 0
+fi
+
+print "** Parando MariaDB (PID ${PID})…"
+
+# Intento de parada limpia
+kill "${PID}"
+
+# Esperar un poco a que termine
+for i in {1..10}; do
+	if ! kill -0 "${PID}" 2>/dev/null; then
+		print "** MariaDB Stopped"
+		rm -f "${PID_FILE}"
+		rm -f "${SOCKET}"
+		exit 0
+	fi
+	sleep 1
+done
+
+print "** MariaDB didn't stop, let's force it..."
+kill -9 "${PID}"
+
+rm -f "${PID_FILE}"
+rm -f "${SOCKET}"
+
+print "** MariaDB Stopped (forced)"

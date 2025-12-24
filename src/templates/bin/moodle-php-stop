@@ -1,0 +1,42 @@
+#!/usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+emulate zsh -o err_exit -o unset -o pipe_fail
+
+PROJECT_ROOT="@BASE-DIR@"
+PID_FILE="${PROJECT_ROOT}/run/php-fpm.pid"
+
+if [[ ! -f "${PID_FILE}" ]]; then
+	print "** PHP-FPM doesn't look like running (there is no pid)"
+	exit 0
+fi
+
+PID=$(<"${PID_FILE}")
+
+if ! kill -0 "${PID}" 2>/dev/null; then
+	print "**  Process ${PID} doesn't exist. Removing pid file."
+	rm -f "${PID_FILE}"
+	exit 0
+fi
+
+print "** Stopping PHP-FPM (PID ${PID})…"
+
+kill "${PID}"
+
+# Esperar parada limpia
+for i in {1..10}; do
+	if ! kill -0 "${PID}" 2>/dev/null; then
+		print "** PHP-FPM stopped"
+		rm -f "${PID_FILE}"
+		exit 0
+	fi
+	sleep 1
+done
+
+print "** PHP-FPM couldn't stop, forcing..."
+kill -9 "${PID}"
+
+rm -f "${PID_FILE}"
+
+print "** PHP-FPM stopped (forzed)"
+

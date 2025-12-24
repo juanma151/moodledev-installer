@@ -1,0 +1,18 @@
+#! /usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+VAR_DIR=@BASE-DIR@
+
+if [[ -f "${VAR_DIR}/run/mysql.pid" ]]; then
+	print - "** MariaDB Server already running"
+	exit 0
+fi
+
+mariadbd \
+	--datadir="${VAR_DIR}/mysql/data" \
+	--socket="${VAR_DIR}/run/mysql.sock" \
+	--pid-file="${VAR_DIR}/run/mysql.pid" \
+	--log-error="${VAR_DIR}/logs/mysql.log" &
+
+sleep 3
+print - "** MariaDB Server started"

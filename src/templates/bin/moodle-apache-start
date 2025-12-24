@@ -1,0 +1,20 @@
+#!/usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+emulate zsh -o err_exit -o unset -o pipe_fail
+
+PROJECT_ROOT="@BASE-DIR@"
+CONF="${PROJECT_ROOT}/conf/apache.conf"
+MOODLE_ROOT="@SITE-ROOT@"
+
+if [[ -z "${MOODLE_ROOT:-}" ]]; then
+	print - "** MOODLE_ROOT doesn't exist"
+	exit 1
+fi
+
+print - "** Starting Apache…"
+print - "   DocumentRoot: ${(qq)${(D)MOODLE_ROOT}}"
+
+httpd -f "${CONF}"
+
+print - "** Apache Started"

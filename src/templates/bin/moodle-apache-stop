@@ -1,0 +1,42 @@
+#!/usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+emulate zsh -o err_exit -o unset -o pipe_fail
+
+PROJECT_ROOT="@BASE-DIR@"
+PID_FILE="${PROJECT_ROOT}/run/apache.pid"
+
+if [[ ! -f "${PID_FILE}" ]]; then
+	print - "** Apache doesn't seem to be running (there is no pid)"
+	exit 0
+fi
+
+PID=$(<"${PID_FILE}")
+
+if ! kill -0 "${PID}" 2>/dev/null; then
+	print - "**  Process ${PID} doesn't exist. Removing pid file."
+	rm -f "${PID_FILE}"
+	exit 0
+fi
+
+print "** Stopping Apache (PID ${PID})…"
+
+# Apache entiende SIGTERM y hace shutdown limpio
+kill "${PID}"
+
+# Esperar parada limpia
+for i in {1..10}; do
+	if ! kill -0 "${PID}" 2>/dev/null; then
+		print "** Apache stopped"
+		rm -f "${PID_FILE}"
+		exit 0
+	fi
+	sleep 1
+done
+
+print "**  Apache couldn't stop, forcing..."
+kill -9 "${PID}"
+
+rm -f "${PID_FILE}"
+
+print "** Apache stopped (forced)"

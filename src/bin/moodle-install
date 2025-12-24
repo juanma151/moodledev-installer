@@ -1,0 +1,410 @@
+#! /usr/bin/env zsh
+# vim: filetype=zsh : tabstop=3 : shiftwidth=3 : noexpandtab :
+
+emulate zsh \
+	-o no__bare_glob_qual \
+	-o no__case_glob \
+	-o ____err_exit \
+	-o ____extended_glob \
+	-o ____glob \
+	-o no__glob_assign \
+	-o no__glob_dots \
+	-o ____glob_star_short \
+	-o no__glob_subst \
+	-o ____null_glob \
+	-o ____numeric_glob_sort \
+	-o ____pipe_fail \
+	-o ____typeset_to_unset \
+	-o no__unset
+
+
+function _process_path () {
+	local fpath=${1} nfpath
+	
+	nfpath=${fpath:a}
+
+	if [[ "${nfpath}" == '/' ]]; then
+		nfpath=''
+	fi
+
+	print - "${nfpath}"
+}
+
+
+function _default_config () {
+	typeset -g -A __OPTS=()
+	typeset -g -A __MAPKEYS=()
+	typeset -g -a __OPTSKEYS=()
+
+	local -a mappedkeys
+	local    BDIR
+
+	# default opts
+	__OPTS=(
+		[--base-dir]=$( _process_path moodle-var )
+		[--db-name]='moodle'
+		[--db-pass]='moodle'
+		[--db-prefix]='mdl_'
+		[--db-root-pass]='moodle-root'
+		[--db-user]='moodle'
+		[--moodle-admin-email]='admin@example.com'
+		[--moodle-admin-fullname]='Moodle Dev Admin'
+		[--moodle-admin-pass]='moodle-root'
+		[--moodle-admin-shortname]='ADMIN'
+		[--moodle-admin-user]='admin'
+		[--moodle-lang]='es'
+		[--site-port]='8080'
+		[--site-root]='@SITE-ROOT@'
+		[--site-servername]='localhost'
+	)
+
+	# gen the other arrays and maps
+	__OPTSKEYS=( "${(@k)__OPTS}" )
+	mappedkeys=( ${__OPTSKEYS} )
+	mappedkeys=( ${(U)mappedkeys} )
+	mappedkeys=( ${mappedkeys##-#} )
+	__MAPKEYS=( ${mappedkeys:^__OPTSKEYS} )
+
+	# extra opts
+	BDIR=${(%):-'%x'}
+	BDIR=${BDIR:A}
+	BDIR=${BDIR:h}
+
+	__OPTS+=(	
+		[--script-dir]=${BDIR}
+		[--templates-dir]="@TEMPLATES@"
+	)
+}
+
+
+function _clean_zparse_arr () {
+	local    vname
+	local -i len index
+
+	# check params
+	(( ${#} > 0 )) || return 0
+
+	# get vname and a reference to it
+	vname=${1}
+	eval -- "typeset -ga ${vname}"
+	[[ -v "${vname}" ]] || return 0
+
+	len=${#${(P)vname}}
+
+	# if size is not multiple of 2, duplicates the last value
+	if (( len % 2 != 0 )); then
+		eval -- "${vname}+=(${${(P)vname}[-1]})"
+		((len++))
+	fi
+
+	# remove the keys
+	for index in {1..${len}..-2}; do
+		eval --  "${vname}[${index}]=()"
+	done
+}
+
+
+function _gen_zparseopts_cmd () {
+	typeset -g -a __OPTSKEYS
+
+	local key
+	local -a buffer=()
+
+	buffer+=( "zparseopts -D -E -A OPTS -" )
+
+	for key in "${(@)__OPTSKEYS}"; do
+		key=${key#-}
+		buffer+=( "${key}:" )
+	done
+
+	print - "${buffer}"
+}
+
+
+function _parse_args_options () {
+	local      -A OPTS KEYS
+	local         key  fpath
+
+	typeset -g -a __ARGS
+	typeset -g -A __OPTS
+
+	# load the args
+	set - "${(@)__ARGS}"
+
+	# ensure we have the zparseopts command
+	zmodload -F zsh/zutil +b:zparseopts || exit 100
+
+	# run
+	eval -- $( _gen_zparseopts_cmd )
+
+	# check the paths
+	KEYS=( --site-root --base-dir )
+	for key in "${(@)KEYS}"; do
+		if (( ${+OPTS[${key}]} == 1 )); then
+			fpath=$( _process_path ${OPTS[${key}]} )
+			if [[ -n "${fpath}" ]]; then
+				OPTS[${key}]=${fpath}
+				OPTS[${key}-set]=1
+			else
+				unset "OPTS[${key}]"
+			fi
+		fi
+	done
+
+	# merge in default
+	__OPTS+=( "${(@kv)OPTS}" )
+
+	# save the rest of args
+	_save_args "${@}"
+}
+
+
+function _save_args () {
+	typeset -ga __ARGS
+	local -r ptn='([^-]|-([^-]|-[^-]))*'
+	local -i index
+
+	index=${@[(i)${~ptn}]}
+
+	__ARGS=( "${@[${index},-1]}" )
+}
+
+
+function _check_moodle_var_arg () {
+	typeset -g -A __OPTS
+	typeset -g -a __ARGS
+
+	local -r ptn='-*'
+	local fpath
+
+	if (( ${+__OPTS[--base-dir-set]} == 0 )); then
+		if (( ${#__ARGS} > 0 )); then
+			fpath=${__ARGS[1]}
+			if [[ "${fpath}" != ${~ptn} ]]; then
+				fpath=$( _process_path ${fpath} )
+				if [[ -n "${fpath}" ]]; then
+					__OPTS[--base-dir]=${fpath}
+					_save_args "${(@)__ARGS[2,-1]}"
+				fi
+			fi
+		fi
+	fi
+}
+
+
+function _create_moodle_var () {
+	typeset -g -A __OPTS
+
+	local fpath pfpath folder
+	local -a FOLDERS
+	
+	fpath=${__OPTS[--base-dir]}
+
+	# if the folder exists, we create a subfolder
+	if [[ -d "${fpath}" ]]; then
+		fpath=${fpath}/moodle-var
+		__OPTS[--base-dir]=${fpath}
+	fi
+
+	# we check if the parent exists
+	pfpath=${fpath:h}
+
+	if [[ ! -d "${pfpath}" ]]; then
+		print -u2 - \
+			"The path ${(qq)${(D)pfpath}} doesn't exist, can't" \
+			"create the moodle-var folder."
+
+		exit 100
+	fi
+
+	mkdir "${fpath}"
+
+	FOLDERS=('conf/php-conf' moodledata 'mysql/data' logs run bin)
+	for folder in "${(@)FOLDERS}"; do
+		mkdir -p "${fpath}/${folder}"
+	done
+}
+
+
+function _gen_sed_code_calc () {
+	typeset -g -A __OPTS __MAPKEYS
+
+	local key okey val
+
+	for key okey in "${(@kv)__MAPKEYS}"; do
+		val=${__OPTS[${okey}]}
+
+		print - "s|@${key}@|${val}|g"
+	done
+}
+
+
+function _gen_sed_code () {
+	typeset -g __SEDCODE
+
+	if (( ${+__SEDCODE_INIT} == 0 )); then
+		__SEDCODE=$( _gen_sed_code_calc )
+	fi
+
+	print - "${__SEDCODE}"
+}
+
+
+function _copy_templates () {
+	typeset -g -A __OPTS
+
+	local srcTemplate tgtTemplate
+	local afile srcFile tgtFile tgtPFile
+	local -a FILES
+
+	srcTemplate=${__OPTS[--templates-dir]}
+	srcTemplate=${srcTemplate:a}
+	tgtTemplate=${__OPTS[--base-dir]}
+	tgtTemplate=${tgtTemplate:a}
+
+	cd "${srcTemplate}"
+	FILES=( **/*(#q-.) )
+
+	for aFile in ${FILES}; do
+		srcFile=${srcTemplate}/${aFile}
+		srcFile=${srcFile:a}
+
+		tgtFile=${tgtTemplate}/${aFile}
+		tgtFile=${tgtFile:a}
+
+		tgtPFile=${tgtFile:h}
+
+		if [[ -d "${tgtPFile}" ]]; then
+			sed -f <( _gen_sed_code ) "${srcFile}" > "${tgtFile}"
+
+			if [[ "${tgtPFile:t}" == 'bin' ]]; then
+				chmod +x "${tgtFile}"
+			fi
+		fi
+	done
+}
+
+
+function _init_mariadb_folder () {
+	typeset -g -A __OPTS
+
+	local -a ALL_HOSTS
+	local    bdir bindir
+	local    VAR_DIR SOCKET
+	local    DB_NAME DB_USER DB_PASS
+	local    THEHOST
+
+	VAR_DIR="${__OPTS[--base-dir]}"
+	bdir=${VAR_DIR}/mysql/data
+	bindir=${VAR_DIR}/bin
+	SOCKET="${VAR_DIR}/run/mysql.sock"
+
+	DB_NAME="${__OPTS[--db-name]}"
+	DB_USER="${__OPTS[--db-user]}"
+	DB_PASS="${__OPTS[--db-pass]}"
+
+	if [[ -d "${bdir}/mysql" ]]; then
+		print - "ERR: MariaDB is already initialized"
+		exit 100
+	fi
+
+	print - "** Init MariaDB data folder"
+
+	mariadb-install-db \
+		--datadir="${bdir}" \
+		--auth-root-authentication-method=normal
+
+	print - "** MariaDB data folder initialised"
+
+	${bindir}/moodle-db-start
+
+	mariadb --socket="${SOCKET}" -u root <<SQL1
+CREATE DATABASE IF NOT EXISTS ${DB_NAME}
+  DEFAULT CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+SQL1
+
+	print - "** Moodle Database Created"
+
+	ALL_HOSTS=(
+		'%' 'localhost' '127.0.0.1'
+	)
+
+	for THEHOST in "${(@)ALL_HOSTS}"; do
+
+		mariadb --socket="${SOCKET}" -u root <<SQL2
+CREATE USER IF NOT EXISTS '${DB_USER}'@'${THEHOST}' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'${THEHOST}';
+FLUSH PRIVILEGES;
+SQL2
+
+		print - "** MariaDB User ${(qq)DB_USER}@${(qq)THEHOST} created and perms set."
+
+	done
+
+	${bindir}/moodle-db-stop
+}
+
+
+function _php_conf_search_path () {
+	typeset -g -A __OPTS
+
+	local olddir newdir
+
+	olddir='@PHPCONF-INI@'
+	newdir="${__OPTS[--base-dir]}/conf/php-conf"
+
+	export PHP_INI_SCAN_DIR="${olddir}:${newdir}"
+}
+
+
+function _install_moodle () {
+	typeset -g -A __OPTS
+
+	local basedir bindir rootdir moodleconf
+
+	basedir="${__OPTS[--base-dir]}"
+	bindir="${basedir}/bin"
+	rootdir="${__OPTS[--site-root]}"
+	moodleconf="${basedir}/conf/moodle-conf.php"
+
+	# start the stack
+	if ! { ${bindir}/moodle-db-start }; then
+		print -u2 - "** ERROR"
+		${bindir}/moodle-db-stop
+		exit 100
+	fi
+
+	#install
+	cd "${rootdir}"
+	export MOODLE_CONFIG="${moodleconf}"
+
+	print - "** Installing Moodle"
+
+	php admin/cli/install_database.php \
+		--agree-license \
+		--lang="${__OPTS[--moodle-lang]}" \
+		--adminuser="${__OPTS[--moodle-admin-user]}" \
+		--adminpass="${__OPTS[--moodle-admin-pass]}" \
+		--adminemail="${__OPTS[--moodle-admin-email]}" \
+		--fullname="${__OPTS[--moodle-admin-fullname]}" \
+		--shortname="${__OPTS[--moodle-admin-shortname]}"
+
+	print - "** Moodle Installed"
+
+	${bindir}/moodle-db-stop
+}
+
+function _run () {
+	_save_args "${@}"
+	_default_config
+	_parse_args_options
+	_check_moodle_var_arg
+	_create_moodle_var
+	_copy_templates
+	_init_mariadb_folder
+	_php_conf_search_path
+	_install_moodle
+}
+
+_run "${@}"
