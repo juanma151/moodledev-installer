@@ -99,8 +99,8 @@
   };
 
   moodleDevInstallerShell = pkgs.mkShell {
-    name = "moodledev-installer-shell";
-    version = "1.4.0";
+    pname = "moodledev-installer-shell";
+    version = "1.4.1";
     packages = [moodleDevInstaller];
   };
 in {
