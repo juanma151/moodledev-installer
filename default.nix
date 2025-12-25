@@ -8,12 +8,13 @@
   sedPkg ? pkgs.gnused,
   ...
 }: let
-  moodlePhpEnv = phpPkg.withExtensions (
-    {
+  moodlePhpEnv = phpPkg.buildEnv {
+    extensions = {
       all,
       enabled,
     }:
-      with all; [
+      enabled
+      ++ (with all; [
         ctype
         curl
         dom
@@ -36,12 +37,14 @@
         xmlreader
         zip
         zlib
-      ]
-  );
+      ]);
+
+    extraConfig = "max_input_vars=5000";
+  };
 
   moodleDevInstaller = pkgs.stdenv.mkDerivation {
     pname = "moodledev-installer";
-    version = "1.2.0";
+    version = "0.2.0";
     src = ./src;
 
     dontBuild = true;
@@ -64,9 +67,8 @@
 
       for f in $out/share/moodledev-installer/templates/bin/*; do
         substituteInPlace "$f" \
-          --replace "@SITE-ROOT@"    "${moodlePkg}/share/moodle" \
-          --replace "@APACHE-MODULES@" "${apachePkg}/modules" \
-          --replace "@PHPCONF-INI@"    "${moodlePhpEnv}/lib"
+          --replace "@SITE-ROOT@"      "${moodlePkg}/share/moodle" \
+          --replace "@APACHE-MODULES@" "${apachePkg}/modules"
       done
 
       # conf
@@ -80,12 +82,6 @@
           --replace "@APACHE-MODULES@" "${apachePkg}/modules"
       done
 
-      # php-conf
-      mkdir -p $out/share/moodledev-installer/templates/conf/php-conf
-
-      cp templates/php-conf/* $out/share/moodledev-installer/templates/conf/php-conf
-
-
       ## 1st level binaries
       mkdir -p $out/bin
 
@@ -95,8 +91,7 @@
         substituteInPlace "$f" \
           --replace "@SITE-ROOT@"    "${moodlePkg}/share/moodle" \
           --replace "@APACHE-MODULES@" "${apachePkg}/modules" \
-          --replace "@TEMPLATES@"      "$out/share/moodledev-installer/templates" \
-          --replace "@PHPCONF-INI@"    "${moodlePhpEnv}/lib"
+          --replace "@TEMPLATES@"      "$out/share/moodledev-installer/templates"
 
         chmod +x "$f"
       done
@@ -105,7 +100,7 @@
 
   moodleDevInstallerShell = pkgs.mkShell {
     name = "moodledev-installer-shell";
-    version = "1.2.0";
+    version = "0.2.0";
     packages = [moodleDevInstaller];
   };
 in {

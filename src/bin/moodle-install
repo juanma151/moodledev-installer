@@ -219,7 +219,7 @@ function _create_moodle_var () {
 
 	mkdir "${fpath}"
 
-	FOLDERS=('conf/php-conf' moodledata 'mysql/data' logs run bin)
+	FOLDERS=(conf moodledata 'mysql/data' logs run bin)
 	for folder in "${(@)FOLDERS}"; do
 		mkdir -p "${fpath}/${folder}"
 	done
@@ -346,18 +346,6 @@ SQL2
 }
 
 
-function _php_conf_search_path () {
-	typeset -g -A __OPTS
-
-	local olddir newdir
-
-	olddir='@PHPCONF-INI@'
-	newdir="${__OPTS[--base-dir]}/conf/php-conf"
-
-	export PHP_INI_SCAN_DIR="${olddir}:${newdir}"
-}
-
-
 function _install_moodle () {
 	typeset -g -A __OPTS
 
@@ -403,7 +391,6 @@ function _run () {
 	_create_moodle_var
 	_copy_templates
 	_init_mariadb_folder
-	_php_conf_search_path
 	_install_moodle
 }
 

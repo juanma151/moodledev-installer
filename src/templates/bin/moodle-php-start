@@ -6,9 +6,6 @@ emulate zsh -o err_exit -o unset -o pipe_fail
 PROJECT_ROOT="@BASE-DIR@"
 CONF="${PROJECT_ROOT}/conf/php-fpm.conf"
 PID_FILE="${PROJECT_ROOT}/run/php-fpm.pid"
-PHPCONF_OLD="@PHPCONF-INI@"
-PHPCONF_NEW="${PROJECT_ROOT}/conf/php-conf"
-PHPCONF_DIR="${PHPCONF_OLD}:${PHPCONF_NEW}"
 
 if [[ -f "${PID_FILE}" ]]; then
 	print "** PHP-FPM looks like running (pid file exists)"
@@ -17,9 +14,7 @@ if [[ -f "${PID_FILE}" ]]; then
 fi
 
 print "** Starting PHP-FPM"
-print "** CONF: ${PHPCONF_DIR}"
 
-export PHP_INI_SCAN_DIR="${PHPCONF_DIR}"
 php-fpm --fpm-config "${CONF}"
 
 print "** PHP-FPM started."
