@@ -44,7 +44,7 @@
 
   moodleDevInstaller = pkgs.stdenv.mkDerivation {
     pname = "moodledev-installer";
-    version = "0.2.0";
+    version = "0.4.0";
     src = ./src;
 
     dontBuild = true;
@@ -100,7 +100,7 @@
 
   moodleDevInstallerShell = pkgs.mkShell {
     name = "moodledev-installer-shell";
-    version = "0.2.0";
+    version = "0.4.0";
     packages = [moodleDevInstaller];
   };
 in {
